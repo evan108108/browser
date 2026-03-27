@@ -69,6 +69,14 @@ pub fn build(b: *Build) !void {
         try linkCurl(b, mod, enable_tsan);
         try linkHtml5Ever(b, mod);
 
+        // stb_truetype (font rasterization for Canvas 2D)
+        mod.addIncludePath(b.path("src/stb"));
+        mod.addCSourceFiles(.{
+            .root = b.path("src/stb"),
+            .files = &.{"stb_wrapper.c"},
+            .flags = &.{"-std=c99"},
+        });
+
         break :blk mod;
     };
 

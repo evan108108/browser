@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sannysoft Local Test</title>
+    <script src="fpCollect.min.js"></script>
+    <script src="modernizr.js"></script>
+    <script src="lodash.min.js"></script>
+    <script src="jquery.min.js"></script>
+    <script src="ua-parser.min.js"></script>
+    <script src="fpScanner.js"></script>
+</head>
+<body>
+<div id="results"></div>
+<script>
+// Run the same canvas fingerprint test sannysoft uses
+function testCanvas() {
+    var result = {};
+    try {
+        var canvas = document.createElement("canvas");
+        var ctx = canvas.getContext("2d");
+        if (!ctx) { result.error = "no 2d context"; return result; }
+
+        canvas.setAttribute("width", 220);
+        canvas.setAttribute("height", 30);
+
+        ctx.textBaseline = "top";
+        ctx.font = "14px 'Arial'";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(53, 1, 62, 20);
+        ctx.fillStyle = "#069";
+        ctx.fillText("Bot test <canvas> 1.1", 2, 15);
+        ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+        ctx.fillText("Bot test <canvas> 1.1", 4, 17);
+
+        var dataUrl = canvas.toDataURL("image/png");
+        result.toDataURL_works = dataUrl.indexOf("data:image/png") === 0;
+        result.toDataURL_length = dataUrl.length;
+        result.toDataURL_prefix = dataUrl.substring(0, 40);
+
+        // Check transparent pixel (sannysoft's TRANSPARENT_PIXEL test)
+        var tpCanvas = document.createElement("canvas");
+        tpCanvas.width = 1;
+        tpCanvas.height = 1;
+        var tpCtx = tpCanvas.getContext("2d");
+        var imageData = tpCtx.getImageData(0, 0, 1, 1);
+        result.transparentPixel = {
+            r: imageData.data[0],
+            g: imageData.data[1],
+            b: imageData.data[2],
+            a: imageData.data[3]
+        };
+
+        // measureText
+        result.measureText = ctx.measureText("test").width > 0;
+
+        // toBlob
+        result.toBlob_exists = typeof canvas.toBlob === "function";
+
+    } catch(e) {
+        result.error = e.toString();
+    }
+    return result;
+}
+
+// Run fpScanner analysis
+fpCollect.generateFingerprint().then(function(fingerprint) {
+    var scannerResults = fpscanner.analyseFingerprint(fingerprint);
+
+    var output = {
+        canvas: testCanvas(),
+        fpScanner: {},
+        summary: { pass: 0, fail: 0, warn: 0 }
+    };
+
+    for (var name in scannerResults) {
+        var data = scannerResults[name];
+        var status = "FAIL";
+        if (data.consistent == 2) status = "WARN";
+        if (data.consistent == 3) status = "PASS";
+
+        output.fpScanner[name] = { status: status, data: data.data };
+
+        if (status === "PASS") output.summary.pass++;
+        else if (status === "WARN") output.summary.warn++;
+        else output.summary.fail++;
+    }
+
+    // Write results as JSON in a div LP can extract
+    document.getElementById("results").textContent = "SANNYSOFT_RESULTS:" + JSON.stringify(output, null, 2);
+});
+</script>
+</body>
+</html>

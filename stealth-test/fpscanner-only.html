@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head><title>fpScanner Test</title>
+<script src="lodash.min.js"></script>
+<script src="ua-parser.min.js"></script>
+<script src="fpCollect.min.js"></script>
+<script src="fpScanner.js"></script>
+</head>
+<body>
+<div id="results"></div>
+<script>
+fpCollect.generateFingerprint().then(function(fp) {
+    var scan = fpscanner.analyseFingerprint(fp);
+    var out = { pass: 0, fail: 0, warn: 0, details: {} };
+    for (var k in scan) {
+        var s = scan[k].consistent === 3 ? "PASS" : scan[k].consistent === 2 ? "WARN" : "FAIL";
+        out.details[k] = s;
+        if (s === "PASS") out.pass++;
+        else if (s === "WARN") out.warn++;
+        else out.fail++;
+    }
+    out.canvas_fp = fp.tpCanvas;
+    document.getElementById("results").textContent = "FPSCAN:" + JSON.stringify(out);
+}).catch(function(e) {
+    document.getElementById("results").textContent = "FPSCAN_ERROR:" + e.toString();
+});
+</script>
+</body>
+</html>

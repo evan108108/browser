@@ -1,0 +1,40 @@
+=== Lightpanda Stealth Test Results ===
+Binary: /Users/evan/memory/bin/lightpanda
+Time:   Fri Mar 27 15:00:56 EDT 2026
+PASS=15 FAIL=0 WARN=1
+
+--- browserleaks.com key values ---
+userAgent:            N/A
+appVersion:           N/A
+vendor:               N/A
+platform:             N/A
+plugins:              N/A
+webdriver:            N/A
+languages:            N/A
+globalPrivacyControl: N/A
+outerWidth:           N/A
+outerHeight:          N/A
+pdfViewerEnabled:     N/A
+
+--- intoli headless test ---
+user-agent → PASS: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+webdriver → PASS: missing (passed)
+chrome → PASS: present (passed)
+permissions → PASS: prompt
+plugins-length → PASS: 5
+languages → PASS: en-US,en
+
+--- canvas API (local test) ---
+canvas:getContext → PASS:object
+canvas:fillRect → PASS:rgba(255,0,0,255)
+canvas:fillText → PASS:772 non-blank pixels
+canvas:toDataURL → PASS:data:image/png;base64,iVBORw0KGgoAAAANSU... (53582 chars)
+canvas:fingerprint → PASS:hash_len=240326
+canvas:saveRestore → PASS:rgba(255,0,0,255)
+canvas:globalAlpha → PASS:alpha=128
+canvas:measureText → PASS:width=64.53583843959495
+canvas:toBlob → PASS:function
+Summary: 9/9 passed
+
+--- bot.sannysoft.com ---
+JS error or fetch issue

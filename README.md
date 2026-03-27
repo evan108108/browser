@@ -84,6 +84,14 @@ docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly
 ```console
 ./lightpanda fetch --obey-robots --log-format pretty  --log-level info https://demo-browser.lightpanda.io/campfire-commerce/
 ```
+
+### Stealth mode
+
+Use `--stealth` to spoof a Chrome 131 browser fingerprint. This overrides the User-Agent in both HTTP headers and JS APIs (`navigator.userAgent`, `navigator.plugins`, `window.chrome`, etc.) and enables a Canvas 2D software renderer for realistic `toDataURL()` fingerprints.
+
+```console
+./lightpanda fetch --stealth --dump html https://example.com
+```
 ```console
 INFO  telemetry : telemetry status . . . . . . . . . . . . .  [+0ms]
       disabled = false
@@ -187,6 +195,8 @@ Here are the key features we have implemented:
 - [x] Proxy support
 - [x] Network interception
 - [x] Respect `robots.txt` with option `--obey-robots`
+- [x] Stealth mode with `--stealth` (spoof Chrome fingerprint in HTTP headers and JS APIs)
+- [x] Canvas 2D software renderer (fillRect, fillText, toDataURL, toBlob, path drawing, font rasterization)
 
 NOTE: There are hundreds of Web APIs. Developing a browser (even just for headless mode) is a huge task. Coverage will increase over time.
 

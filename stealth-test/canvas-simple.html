@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head><title>Canvas Test</title></head>
+<body>
+<div id="results"></div>
+<script>
+var r = {};
+try {
+    var c = document.createElement("canvas");
+    var ctx = c.getContext("2d");
+    r.context = ctx ? "ok" : "null";
+
+    c.width = 220;
+    c.height = 30;
+
+    ctx.fillStyle = "#f60";
+    ctx.fillRect(53, 1, 62, 20);
+    r.fillRect = "ok";
+
+    ctx.font = "14px Arial";
+    ctx.fillStyle = "#069";
+    ctx.fillText("Hello Canvas", 2, 15);
+    r.fillText = "ok";
+
+    var url = c.toDataURL();
+    r.toDataURL = url.indexOf("data:image/png") === 0 ? "ok" : "fail";
+    r.toDataURL_len = url.length;
+
+    var m = ctx.measureText("test");
+    r.measureText = m.width > 0 ? "ok (" + m.width + ")" : "fail";
+
+    r.toBlob_exists = typeof c.toBlob === "function" ? "ok" : "missing";
+
+    // getImageData
+    var id = ctx.getImageData(53, 1, 1, 1);
+    r.getImageData = "rgba(" + id.data[0] + "," + id.data[1] + "," + id.data[2] + "," + id.data[3] + ")";
+
+    // save/restore
+    ctx.save();
+    ctx.fillStyle = "#ff0000";
+    ctx.restore();
+    r.saveRestore = ctx.fillStyle === "#069" ? "ok" : "fail (got " + ctx.fillStyle + ")";
+
+} catch(e) {
+    r.error = e.toString();
+}
+document.getElementById("results").textContent = "CANVAS_RESULTS:" + JSON.stringify(r);
+</script>
+</body>
+</html>

@@ -183,15 +183,65 @@ fi
 
 echo ""
 
-# --- Test 3: bot.sannysoft.com ---
-echo "## Test 3: bot.sannysoft.com"
+# --- Test 3: Canvas API (local test) ---
+echo "## Test 3: Canvas API (local)"
+CANVAS_HTML="$(dirname "$0")/stealth-tests/canvas-test.html"
+if [ -f "$CANVAS_HTML" ]; then
+  echo "   Starting local server..."
+  # Start a local HTTP server in background
+  python3 -m http.server 18931 --directory "$(dirname "$CANVAS_HTML")" >/dev/null 2>&1 &
+  HTTP_PID=$!
+  sleep 0.5
+
+  CANVAS_OUT=$("$LP" fetch $EXTRA_ARGS --dump html "http://127.0.0.1:18931/canvas-test.html" --wait-ms 3000 2>/dev/null || echo "FETCH_ERROR")
+  kill $HTTP_PID 2>/dev/null || true
+
+  if [ "$CANVAS_OUT" = "FETCH_ERROR" ]; then
+    echo "   FETCH FAILED"
+    check "canvas-local" "FAIL" "Fetch failed"
+  else
+    for test_id in getContext fillRect fillText toDataURL fingerprint saveRestore globalAlpha measureText toBlob; do
+      tag_content=$(echo "$CANVAS_OUT" | sed -n "s/.*id=\"canvas-${test_id}\"[^>]*>\([^<]*\).*/\1/p" | head -1)
+      if echo "$tag_content" | grep -q "^PASS"; then
+        value=$(echo "$tag_content" | sed 's/^PASS://')
+        check "canvas:$test_id" "PASS" "$value"
+      elif echo "$tag_content" | grep -q "^FAIL"; then
+        value=$(echo "$tag_content" | sed 's/^FAIL://')
+        check "canvas:$test_id" "FAIL" "$value"
+      else
+        check "canvas:$test_id" "WARN" "${tag_content:-<not found>}" "could not parse"
+      fi
+    done
+    summary=$(echo "$CANVAS_OUT" | sed -n "s/.*id=\"canvas-summary\"[^>]*>\([^<]*\).*/\1/p" | head -1)
+    echo "   Canvas summary: ${summary:-unknown}"
+  fi
+else
+  echo "   Canvas test HTML not found at $CANVAS_HTML"
+  check "canvas-local" "WARN" "test file missing"
+fi
+
+echo ""
+
+# --- Test 4: bot.sannysoft.com ---
+echo "## Test 4: bot.sannysoft.com"
 echo "   Fetching..."
 SANNY_OUT=$("$LP" fetch $EXTRA_ARGS --dump html "https://bot.sannysoft.com" 2>&1 || true)
 
 if echo "$SANNY_OUT" | grep -q "fatal\|error\|Error"; then
-  check "sannysoft" "WARN" "JS error (canvas not supported)" "expected — LP has no canvas"
+  check "sannysoft" "WARN" "JS error or fetch issue"
 else
   echo "   Got response ($(echo "$SANNY_OUT" | wc -c | tr -d ' ') bytes)"
+  # Try to extract canvas-related test results from sannysoft output
+  for test_id in "canvas-test-fp" "canvas-test-display"; do
+    tag=$(echo "$SANNY_OUT" | sed -n "s/.*id=\"${test_id}\"[^>]*>\([^<]*\).*/\1/p" | head -1)
+    if [ -n "$tag" ]; then
+      if echo "$tag" | grep -qi "pass\|ok\|yes"; then
+        check "sannysoft:$test_id" "PASS" "$tag"
+      else
+        check "sannysoft:$test_id" "FAIL" "$tag"
+      fi
+    fi
+  done
 fi
 
 echo ""
@@ -232,9 +282,21 @@ echo "========================================="
     fi
   done
   echo ""
+  echo "--- canvas API (local test) ---"
+  if [ -n "${CANVAS_OUT:-}" ] && [ "$CANVAS_OUT" != "FETCH_ERROR" ]; then
+    for test_id in getContext fillRect fillText toDataURL fingerprint saveRestore globalAlpha measureText toBlob; do
+      tag_content=$(echo "$CANVAS_OUT" | sed -n "s/.*id=\"canvas-${test_id}\"[^>]*>\([^<]*\).*/\1/p" | head -1)
+      echo "canvas:$test_id → ${tag_content:-N/A}"
+    done
+    summary=$(echo "$CANVAS_OUT" | sed -n "s/.*id=\"canvas-summary\"[^>]*>\([^<]*\).*/\1/p" | head -1)
+    echo "Summary: ${summary:-unknown}"
+  else
+    echo "Canvas test: not run or failed"
+  fi
+  echo ""
   echo "--- bot.sannysoft.com ---"
-  if echo "$SANNY_OUT" | grep -q "fatal\|error\|Error"; then
-    echo "JS error: canvas not supported (expected)"
+  if echo "${SANNY_OUT:-}" | grep -q "fatal\|error\|Error"; then
+    echo "JS error or fetch issue"
   else
     echo "Response: $(echo "${SANNY_OUT:-}" | wc -c | tr -d ' ') bytes"
   fi

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head><title>Canvas Bot Detection Test</title></head>
+<body>
+<div id="results"></div>
+<script>
+// Exact sannysoft canvas fingerprint test
+function sannyCanvasTest() {
+    var r = {};
+    try {
+        var canvas = document.createElement("canvas");
+        canvas.setAttribute("width", 220);
+        canvas.setAttribute("height", 30);
+        var ctx = canvas.getContext("2d");
+
+        ctx.textBaseline = "top";
+        ctx.font = "14px 'Arial'";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(53, 1, 62, 20);
+        ctx.fillStyle = "#069";
+        ctx.fillText("Bot test <canvas> 1.1", 2, 15);
+        ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+        ctx.fillText("Bot test <canvas> 1.1", 4, 17);
+
+        var dataUrl = canvas.toDataURL("image/png");
+        r.toDataURL_valid = dataUrl.indexOf("data:image/png") === 0;
+        r.toDataURL_length = dataUrl.length;
+        r.toDataURL_not_blank = dataUrl.length > 100;
+
+        // TRANSPARENT_PIXEL test (sannysoft checks this)
+        var tp = document.createElement("canvas");
+        tp.width = 1; tp.height = 1;
+        var tpCtx = tp.getContext("2d");
+        var id = tpCtx.getImageData(0, 0, 1, 1);
+        r.transparent_pixel = [id.data[0], id.data[1], id.data[2], id.data[3]];
+        r.transparent_pixel_pass = id.data[0] === 0 && id.data[1] === 0 && id.data[2] === 0 && id.data[3] === 0;
+
+    } catch(e) {
+        r.error = e.toString();
+    }
+    return r;
+}
+
+// Navigator/Chrome tests (sannysoft intoli section)
+function intoliTests() {
+    var r = {};
+    r.userAgent = navigator.userAgent;
+    r.userAgent_not_headless = !/HeadlessChrome/.test(navigator.userAgent);
+    r.webdriver = navigator.webdriver;
+    r.webdriver_pass = !navigator.webdriver;
+    r.chrome_present = !!window.chrome;
+    r.plugins_length = navigator.plugins.length;
+    r.plugins_pass = navigator.plugins.length > 0;
+    r.languages = navigator.languages ? navigator.languages.join(",") : "";
+    r.languages_pass = navigator.languages && navigator.languages.length > 0;
+    r.platform = navigator.platform;
+    r.hardwareConcurrency = navigator.hardwareConcurrency;
+    r.deviceMemory = navigator.deviceMemory;
+    return r;
+}
+
+// Phantom/Selenium detection
+function botDetection() {
+    var r = {};
+    var docKeys = ["__webdriver_evaluate","__selenium_evaluate","__webdriver_script_function",
+        "__driver_unwrapped","__webdriver_unwrapped","__selenium_unwrapped",
+        "_Selenium_IDE_Recorder","_selenium","webdriver","$cdc_asdjflasutopfhvcZLmcfl_"];
+    var winKeys = ["_phantom","__nightmare","_selenium","callPhantom","callSelenium"];
+
+    r.document_keys_clean = true;
+    for (var i = 0; i < docKeys.length; i++) {
+        if (document[docKeys[i]]) { r.document_keys_clean = false; r.found_key = docKeys[i]; break; }
+    }
+    r.window_keys_clean = true;
+    for (var j = 0; j < winKeys.length; j++) {
+        if (window[winKeys[j]]) { r.window_keys_clean = false; r.found_key = winKeys[j]; break; }
+    }
+    r.no_webdriver_attr = !document.documentElement.getAttribute("webdriver");
+    r.no_selenium_attr = !document.documentElement.getAttribute("selenium");
+    r.no_driver_attr = !document.documentElement.getAttribute("driver");
+    return r;
+}
+
+var output = {
+    canvas: sannyCanvasTest(),
+    intoli: intoliTests(),
+    botDetect: botDetection()
+};
+
+// Count pass/fail
+var pass = 0, fail = 0;
+var checks = [
+    output.canvas.toDataURL_valid, output.canvas.toDataURL_not_blank,
+    output.canvas.transparent_pixel_pass,
+    output.intoli.userAgent_not_headless, output.intoli.webdriver_pass,
+    output.intoli.chrome_present, output.intoli.plugins_pass, output.intoli.languages_pass,
+    output.botDetect.document_keys_clean, output.botDetect.window_keys_clean,
+    output.botDetect.no_webdriver_attr, output.botDetect.no_selenium_attr, output.botDetect.no_driver_attr
+];
+for (var c = 0; c < checks.length; c++) {
+    if (checks[c]) pass++; else fail++;
+}
+output.summary = { pass: pass, fail: fail, total: checks.length };
+
+document.getElementById("results").textContent = "DETECT_RESULTS:" + JSON.stringify(output);
+</script>
+</body>
+</html>
