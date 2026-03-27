@@ -1,47 +1,38 @@
+<h1 align="center">StealthPanda</h1>
 <p align="center">
-  <a href="https://lightpanda.io"><img src="https://cdn.lightpanda.io/assets/images/logo/lpd-logo.png" alt="Logo" height=170></a>
-</p>
-<h1 align="center">Lightpanda Browser</h1>
-<p align="center">
-<strong>The headless browser built from scratch for AI agents and automation.</strong><br>
-Not a Chromium fork. Not a WebKit patch. A new browser, written in Zig.
+<strong>A stealth-enhanced fork of <a href="https://github.com/lightpanda-io/browser">Lightpanda Browser</a> — the headless browser built from scratch for AI agents and automation.</strong><br>
+Chrome fingerprint spoofing, Canvas 2D software rendering, and bot detection bypass. Written in Zig.
 </p>
 
-</div>
 <div align="center">
 
-[![License](https://img.shields.io/github/license/lightpanda-io/browser)](https://github.com/lightpanda-io/browser/blob/main/LICENSE)
-[![Twitter Follow](https://img.shields.io/twitter/follow/lightpanda_io)](https://twitter.com/lightpanda_io)
-[![GitHub stars](https://img.shields.io/github/stars/lightpanda-io/browser)](https://github.com/lightpanda-io/browser)
-[![Discord](https://img.shields.io/discord/1391984864894521354?style=flat-square&label=discord)](https://discord.gg/K63XeymfB5)
+[![License](https://img.shields.io/github/license/evan108108/StealthPanda)](https://github.com/evan108108/StealthPanda/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/evan108108/StealthPanda)](https://github.com/evan108108/StealthPanda)
+[![Upstream](https://img.shields.io/badge/upstream-lightpanda--io%2Fbrowser-blue)](https://github.com/lightpanda-io/browser)
 
 </div>
-<div align="center">
 
-[<img width="350px" src="https://cdn.lightpanda.io/assets/images/github/execution-time-v2.svg">
-](https://github.com/lightpanda-io/demo)
-&emsp;
-[<img width="350px" src="https://cdn.lightpanda.io/assets/images/github/memory-frame-v2.svg">
-](https://github.com/lightpanda-io/demo)
-</div>
+## What's different from upstream Lightpanda?
 
-_chromedp requesting 933 real web pages over the network on a AWS EC2 m5.large instance.
-See [benchmark details](https://github.com/lightpanda-io/demo/blob/main/BENCHMARKS.md#crawler-benchmark)._
+StealthPanda adds stealth capabilities on top of Lightpanda's fast, lightweight headless browser:
 
-Lightpanda is the open-source browser made for headless usage:
+- **`--stealth` mode** — spoofs a Chrome 131 fingerprint in HTTP headers and JS APIs (`navigator.userAgent`, `navigator.plugins`, `window.chrome`, etc.)
+- **Canvas 2D software renderer** — real pixel buffer with fillRect, fillText, path drawing, arc, toDataURL, toBlob — produces realistic canvas fingerprints that pass bot detection
+- **Font rasterization** — stb_truetype integration with embedded Liberation Sans for authentic text rendering
+- **Fingerprint noise** — per-session pixel variation so canvas hashes are unique across runs
+- **13/13 bot detection checks pass** — tested against sannysoft fpScanner, intoli headless detection, and selenium/phantom markers
 
-- Javascript execution
+Everything else comes from upstream Lightpanda:
+
+- Javascript execution via V8
 - Support of Web APIs (partial, WIP)
 - Compatible with Playwright[^1], Puppeteer, chromedp through [CDP](https://chromedevtools.github.io/devtools-protocol/)
-
-Fast web automation for AI agents, LLM training, scraping and testing:
-
 - Ultra-low memory footprint (9x less than Chrome)
 - Exceptionally fast execution (11x faster than Chrome)
 - Instant startup
 
 [^1]: **Playwright support disclaimer:**
-Due to the nature of Playwright, a script that works with the current version of the browser may not function correctly with a future version. Playwright uses an intermediate JavaScript layer that selects an execution strategy based on the browser's available features. If Lightpanda adds a new [Web API](https://developer.mozilla.org/en-US/docs/Web/API), Playwright may choose to execute different code for the same script. This new code path could attempt to use features that are not yet implemented. Lightpanda makes an effort to add compatibility tests, but we can't cover all scenarios. If you encounter an issue, please create a [GitHub issue](https://github.com/lightpanda-io/browser/issues) and include the last known working version of the script.
+Due to the nature of Playwright, a script that works with the current version of the browser may not function correctly with a future version. See [upstream note](https://github.com/lightpanda-io/browser#quick-start) for details.
 
 ## Quick start
 
