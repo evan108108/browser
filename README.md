@@ -1,7 +1,7 @@
 <h1 align="center">StealthPanda</h1>
 <p align="center">
 <strong>A stealth-enhanced fork of <a href="https://github.com/lightpanda-io/browser">Lightpanda Browser</a> — the headless browser built from scratch for AI agents and automation.</strong><br>
-Chrome fingerprint spoofing, Canvas 2D software rendering, and bot detection bypass. Written in Zig.
+Chrome fingerprint spoofing, Canvas 2D rendering, Web Audio API spoofing, and bot detection bypass. Written in Zig.
 </p>
 
 <div align="center">
@@ -9,6 +9,7 @@ Chrome fingerprint spoofing, Canvas 2D software rendering, and bot detection byp
 [![License](https://img.shields.io/github/license/evan108108/StealthPanda)](https://github.com/evan108108/StealthPanda/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/evan108108/StealthPanda)](https://github.com/evan108108/StealthPanda)
 [![Upstream](https://img.shields.io/badge/upstream-lightpanda--io%2Fbrowser-blue)](https://github.com/lightpanda-io/browser)
+[![Tests](https://github.com/evan108108/StealthPanda/actions/workflows/test.yml/badge.svg)](https://github.com/evan108108/StealthPanda/actions/workflows/test.yml)
 
 </div>
 
@@ -18,9 +19,13 @@ StealthPanda adds stealth capabilities on top of Lightpanda's fast, lightweight 
 
 - **`--stealth` mode** — spoofs a Chrome 131 fingerprint in HTTP headers and JS APIs (`navigator.userAgent`, `navigator.plugins`, `window.chrome`, etc.)
 - **Canvas 2D software renderer** — real pixel buffer with fillRect, fillText, path drawing, arc, toDataURL, toBlob — produces realistic canvas fingerprints that pass bot detection
+- **Web Audio API fingerprint spoofing** — AudioContext, OfflineAudioContext, OscillatorNode, DynamicsCompressorNode, GainNode, AnalyserNode, AudioBufferSourceNode — generates deterministic audio fingerprints that match real Chrome output
 - **Font rasterization** — stb_truetype integration with embedded Liberation Sans for authentic text rendering
 - **Fingerprint noise** — per-session pixel variation so canvas hashes are unique across runs
+- **Navigator spoofing** — platform, languages, hardwareConcurrency, deviceMemory, plugins, mimeTypes all match Chrome 131 on the target OS
+- **PluginArray & MimeTypeArray** — 5 PDF plugins with proper circular references (MimeType → Plugin back-ref via `@fieldParentPtr`), comptime-initialized for zero runtime overhead
 - **13/13 bot detection checks pass** — tested against sannysoft fpScanner, intoli headless detection, and selenium/phantom markers
+- **396 tests passing** — full test suite green on CI
 
 Everything else comes from upstream Lightpanda:
 
@@ -37,22 +42,20 @@ Due to the nature of Playwright, a script that works with the current version of
 ## Quick start
 
 ### Install
-**Install from the nightly builds**
+**Install from releases**
 
-You can download the last binary from the [nightly
-builds](https://github.com/lightpanda-io/browser/releases/tag/nightly) for
-Linux x86_64 and MacOS aarch64.
+Download the latest binary from [StealthPanda releases](https://github.com/evan108108/StealthPanda/releases) for Linux x86_64 and macOS aarch64.
 
 *For Linux*
 ```console
-curl -L -o lightpanda https://github.com/lightpanda-io/browser/releases/download/nightly/lightpanda-x86_64-linux && \
-chmod a+x ./lightpanda
+curl -L -o stealthpanda https://github.com/evan108108/StealthPanda/releases/latest/download/stealthpanda-x86_64-linux && \
+chmod a+x ./stealthpanda
 ```
 
-*For MacOS*
+*For macOS*
 ```console
-curl -L -o lightpanda https://github.com/lightpanda-io/browser/releases/download/nightly/lightpanda-aarch64-macos && \
-chmod a+x ./lightpanda
+curl -L -o stealthpanda https://github.com/evan108108/StealthPanda/releases/latest/download/stealthpanda-aarch64-macos && \
+chmod a+x ./stealthpanda
 ```
 
 *For Windows + WSL2*
@@ -78,7 +81,7 @@ docker run -d --name lightpanda -p 9222:9222 lightpanda/browser:nightly
 
 ### Stealth mode
 
-Use `--stealth` to spoof a Chrome 131 browser fingerprint. This overrides the User-Agent in both HTTP headers and JS APIs (`navigator.userAgent`, `navigator.plugins`, `window.chrome`, etc.) and enables a Canvas 2D software renderer for realistic `toDataURL()` fingerprints.
+Use `--stealth` to spoof a Chrome 131 browser fingerprint. This overrides the User-Agent in both HTTP headers and JS APIs (`navigator.userAgent`, `navigator.plugins`, `window.chrome`, etc.), enables a Canvas 2D software renderer for realistic `toDataURL()` fingerprints, and provides Web Audio API spoofing for audio-based fingerprint checks.
 
 ```console
 ./lightpanda fetch --stealth --dump html https://example.com
@@ -188,6 +191,8 @@ Here are the key features we have implemented:
 - [x] Respect `robots.txt` with option `--obey-robots`
 - [x] Stealth mode with `--stealth` (spoof Chrome fingerprint in HTTP headers and JS APIs)
 - [x] Canvas 2D software renderer (fillRect, fillText, toDataURL, toBlob, path drawing, font rasterization)
+- [x] Web Audio API spoofing (AudioContext, OfflineAudioContext, OscillatorNode, DynamicsCompressorNode, GainNode, AnalyserNode)
+- [x] Navigator fingerprint spoofing (platform, languages, plugins, mimeTypes, deviceMemory, hardwareConcurrency)
 
 NOTE: There are hundreds of Web APIs. Developing a browser (even just for headless mode) is a huge task. Coverage will increase over time.
 
