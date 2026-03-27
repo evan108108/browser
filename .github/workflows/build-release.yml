@@ -1,0 +1,54 @@
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - main
+
+  # Manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-x86_64:
+    env:
+      ARCH: x86_64
+      OS: linux
+
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/install
+        with:
+          os: ${{ env.OS }}
+          arch: ${{ env.ARCH }}
+
+      - name: v8 snapshot
+        run: zig build -Dprebuilt_v8_path=v8/libc_v8.a -Doptimize=ReleaseFast snapshot_creator -- src/snapshot.bin
+
+      - name: zig build
+        run: zig build -Dsnapshot_path=../../snapshot.bin -Dprebuilt_v8_path=v8/libc_v8.a -Doptimize=ReleaseFast -Dcpu=x86_64 -Dgit_commit=$(git rev-parse --short ${{ github.sha }})
+
+      - name: Rename binary
+        run: mv zig-out/bin/lightpanda stealthpanda-${{ env.ARCH }}-${{ env.OS }}
+
+      - name: Upload to latest release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: stealthpanda-${{ env.ARCH }}-${{ env.OS }}
+          tag: latest
+          name: Latest Build
+          body: |
+            Automated build from `main` branch.
+            Commit: ${{ github.sha }}
+            Built: ${{ github.event.head_commit.timestamp }}
+          makeLatest: true
+          replacesArtifacts: true
