@@ -56,6 +56,7 @@ const SavedState = struct {
     line_width: f64,
     global_alpha: f64,
     font_size: f64,
+    font_str: []const u8,
 };
 
 // --- Fields ---
@@ -80,6 +81,8 @@ _line_width: f64 = 1.0,
 _global_alpha: f64 = 1.0,
 /// Font size parsed from font property.
 _font_size: f64 = 10.0,
+/// Raw CSS font string for getter (e.g., "bold 48px serif").
+_font_str: []const u8 = "10px sans-serif",
 /// Per-instance seed for fingerprint variation.
 _noise_seed: u32 = 0,
 /// State stack for save()/restore().
@@ -908,6 +911,7 @@ pub fn save(self: *CanvasRenderingContext2D) void {
         .line_width = self._line_width,
         .global_alpha = self._global_alpha,
         .font_size = self._font_size,
+        .font_str = self._font_str,
     };
     self._state_stack_len += 1;
 }
@@ -922,6 +926,7 @@ pub fn restore(self: *CanvasRenderingContext2D) void {
     self._line_width = state.line_width;
     self._global_alpha = state.global_alpha;
     self._font_size = state.font_size;
+    self._font_str = state.font_str;
 }
 pub fn scale(_: *CanvasRenderingContext2D, _: f64, _: f64) void {}
 pub fn rotate(_: *CanvasRenderingContext2D, _: f64) void {}
@@ -1133,17 +1138,16 @@ pub fn measureText(self: *CanvasRenderingContext2D, text: []const u8, page: *Pag
     });
 }
 
-pub fn getFont(self: *const CanvasRenderingContext2D, page: *Page) ![]const u8 {
-    // Format as "<size>px sans-serif" to match the stored font size.
-    var buf: [64]u8 = undefined;
-    const result = std.fmt.bufPrint(&buf, "{d}px sans-serif", .{self._font_size}) catch return "10px sans-serif";
-    return page.call_arena.dupe(u8, result);
+pub fn getFont(self: *const CanvasRenderingContext2D) []const u8 {
+    return self._font_str;
 }
 
 pub fn setFont(self: *CanvasRenderingContext2D, value: []const u8) void {
     // Parse font size from CSS font shorthand (e.g., "14px Arial", "bold 12pt serif").
     // We only extract the numeric size; font family is always Liberation Sans.
     self._font_size = parseFontSize(value);
+    // Store the raw string for the getter (per spec, font getter returns what was set).
+    self._font_str = value;
 }
 
 /// Parse a CSS font size value from a font shorthand string.

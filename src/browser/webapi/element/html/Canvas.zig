@@ -95,7 +95,13 @@ pub fn getContext(self: *Canvas, context_type: []const u8, page: *Page) !?Drawin
         // Per spec: return null if a different context type was already requested.
         if (self._context_type != .none) return null;
 
-        const arena = try page.getArena(.{ .debug = "CanvasRenderingContext2D" });
+        // Only allocate a pixel-buffer arena in stealth mode (needed for
+        // software rendering). In non-stealth mode, draw ops are effectively
+        // no-ops and no pixel buffer is ever used — avoiding arena leaks.
+        const arena: ?std.mem.Allocator = if (page._session.browser.app.config.isStealth())
+            try page.getArena(.{ .debug = "CanvasRenderingContext2D" })
+        else
+            null;
         const ctx = try page._factory.create(CanvasRenderingContext2D{
             ._arena = arena,
             ._width = self.getWidth(),
