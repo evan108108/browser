@@ -26,53 +26,41 @@ pub fn registerTypes() []const type {
 
 const PluginArray = @This();
 
-// Fields
+// Fields — fully comptime-initialized, no mutation needed.
+// The struct may reside in read-only memory (__TEXT segment on macOS),
+// so all fields must be set at comptime to avoid SIGBUS on write.
 _pad: bool = false,
-_plugins: [5]Plugin = undefined,
-_initialized: bool = false,
+_plugins: [5]Plugin = .{
+    makePlugin("PDF Viewer"),
+    makePlugin("Chrome PDF Viewer"),
+    makePlugin("Chromium PDF Viewer"),
+    makePlugin("Microsoft Edge PDF Viewer"),
+    makePlugin("WebKit built-in PDF"),
+},
 
-/// Lazy-initialize the 5 PDF plugins and MimeType circular back-refs.
-fn ensureInit(self: *PluginArray) void {
-    if (self._initialized) return;
-    const names = [5][]const u8{
-        "PDF Viewer",
-        "Chrome PDF Viewer",
-        "Chromium PDF Viewer",
-        "Microsoft Edge PDF Viewer",
-        "WebKit built-in PDF",
+fn makePlugin(comptime name: []const u8) Plugin {
+    return .{
+        .name = name,
+        .description = "Portable Document Format",
+        .filename = "internal-pdf-viewer",
     };
-    for (names, 0..) |name, i| {
-        self._plugins[i] = .{
-            .name = name,
-            .description = "Portable Document Format",
-            .filename = "internal-pdf-viewer",
-        };
-        // Set up circular MimeType → Plugin back-reference
-        self._plugins[i]._mime_type._enabled_plugin = &self._plugins[i];
-    }
-    self._initialized = true;
 }
 
 pub fn refresh(_: *const PluginArray) void {}
 
-pub fn getLength(self: *PluginArray, page: *Page) u32 {
-    if (page._session.browser.app.config.isStealth()) {
-        self.ensureInit();
-        return 5;
-    }
+pub fn getLength(_: *const PluginArray, page: *Page) u32 {
+    if (page._session.browser.app.config.isStealth()) return 5;
     return 0;
 }
 
 pub fn getAtIndex(self: *PluginArray, index: usize, page: *Page) ?*Plugin {
     if (!page._session.browser.app.config.isStealth()) return null;
-    self.ensureInit();
     if (index < 5) return &self._plugins[index];
     return null;
 }
 
 pub fn getByName(self: *PluginArray, name: []const u8, page: *Page) ?*Plugin {
     if (!page._session.browser.app.config.isStealth()) return null;
-    self.ensureInit();
     for (&self._plugins) |*p| {
         if (std.mem.eql(u8, p.name, name)) return p;
     }
@@ -132,7 +120,6 @@ const MimeType = struct {
     _type: []const u8 = "application/pdf",
     _description: []const u8 = "Portable Document Format",
     _suffixes: []const u8 = "pdf",
-    _enabled_plugin: ?*Plugin = null, // circular back-ref, set by PluginArray.ensureInit()
 
     pub fn getType(self: *const MimeType) []const u8 {
         return self._type;
@@ -146,8 +133,11 @@ const MimeType = struct {
         return self._suffixes;
     }
 
-    pub fn getEnabledPlugin(self: *const MimeType) ?*Plugin {
-        return self._enabled_plugin;
+    /// Navigate from MimeType back to the parent Plugin via @fieldParentPtr.
+    /// This avoids storing a mutable pointer (which would require runtime init
+    /// and cause SIGBUS when the struct is in read-only memory).
+    pub fn getEnabledPlugin(self: *const MimeType) *Plugin {
+        return @constCast(@fieldParentPtr("_mime_type", self));
     }
 
     pub const JsApi = struct {
@@ -161,7 +151,7 @@ const MimeType = struct {
         pub const @"type" = bridge.accessor(MimeType.getType, null, .{});
         pub const description = bridge.accessor(MimeType.getDescription, null, .{});
         pub const suffixes = bridge.accessor(MimeType.getSuffixes, null, .{});
-        pub const enabledPlugin = bridge.accessor(MimeType.getEnabledPlugin, null, .{ .null_as_undefined = true });
+        pub const enabledPlugin = bridge.accessor(MimeType.getEnabledPlugin, null, .{});
     };
 };
 
