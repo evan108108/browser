@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  zig-test:
+    name: zig test
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    env:
+      ARCH: x86_64
+      OS: linux
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/install
+        with:
+          os: ${{ env.OS }}
+          arch: ${{ env.ARCH }}
+
+      - name: zig test
+        run: zig build -Dprebuilt_v8_path=v8/libc_v8.a test
+
+  zig-fmt:
+    name: zig fmt
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: mlugg/setup-zig@v2
+
+      - name: zig fmt
+        run: |
+          zig fmt --check src/
+          zig fmt --check build.zig
