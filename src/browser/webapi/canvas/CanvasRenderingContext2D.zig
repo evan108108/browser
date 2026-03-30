@@ -24,6 +24,7 @@ const js = @import("../../js/js.zig");
 const color = @import("../../color.zig");
 const Page = @import("../../Page.zig");
 
+const Canvas = @import("../element/html/Canvas.zig");
 const ImageData = @import("../ImageData.zig");
 const TextMetrics = @import("TextMetrics.zig");
 
@@ -61,6 +62,9 @@ const SavedState = struct {
 
 // --- Fields ---
 
+/// Reference to the parent canvas element.
+/// https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/canvas
+_canvas: *Canvas,
 /// Fill color.
 /// TODO: Add support for `CanvasGradient` and `CanvasPattern`.
 _fill_style: color.RGBA = color.RGBA.Named.black,
@@ -664,6 +668,10 @@ fn flattenCubicBezier(self: *CanvasRenderingContext2D, arena: Allocator, x0: f64
 
 // --- Public methods: property accessors ---
 
+pub fn getCanvas(self: *const CanvasRenderingContext2D) *Canvas {
+    return self._canvas;
+}
+
 pub fn getFillStyle(self: *const CanvasRenderingContext2D, page: *Page) ![]const u8 {
     var w = std.Io.Writer.Allocating.init(page.call_arena);
     try self._fill_style.format(&w.writer);
@@ -1192,6 +1200,7 @@ pub const JsApi = struct {
         pub var class_id: bridge.ClassId = undefined;
     };
 
+    pub const canvas = bridge.accessor(CanvasRenderingContext2D.getCanvas, null, .{});
     pub const font = bridge.accessor(CanvasRenderingContext2D.getFont, CanvasRenderingContext2D.setFont, .{});
     pub const globalCompositeOperation = bridge.property("source-over", .{ .template = false, .readonly = false });
     pub const lineCap = bridge.property("butt", .{ .template = false, .readonly = false });

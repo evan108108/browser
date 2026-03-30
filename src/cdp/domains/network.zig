@@ -351,6 +351,10 @@ pub const TransferAsRequestWriter = struct {
                 try jws.objectField(hdr.name);
                 try jws.write(hdr.value);
             }
+            if (try transfer.getCookieString()) |cookies| {
+                try jws.objectField("Cookie");
+                try jws.write(cookies[0 .. cookies.len - 1]);
+            }
             try jws.endObject();
         }
         try jws.endObject();
@@ -439,7 +443,7 @@ fn idFromRequestId(request_id: []const u8) !u64 {
 
 const testing = @import("../testing.zig");
 test "cdp.network setExtraHTTPHeaders" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
 
     _ = try ctx.loadBrowserContext(.{ .id = "NID-A", .session_id = "NESI-A" });
@@ -465,7 +469,7 @@ test "cdp.Network: cookies" {
     const ResCookie = CdpStorage.ResCookie;
     const CdpCookie = CdpStorage.CdpCookie;
 
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
     _ = try ctx.loadBrowserContext(.{ .id = "BID-S" });
 

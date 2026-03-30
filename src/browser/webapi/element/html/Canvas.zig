@@ -103,6 +103,7 @@ pub fn getContext(self: *Canvas, context_type: []const u8, page: *Page) !?Drawin
         else
             null;
         const ctx = try page._factory.create(CanvasRenderingContext2D{
+            ._canvas = self,
             ._arena = arena,
             ._width = self.getWidth(),
             ._height = self.getHeight(),

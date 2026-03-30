@@ -18,15 +18,12 @@
 
 const std = @import("std");
 const js = @import("js.zig");
-const lp = @import("lightpanda");
-const log = @import("../../log.zig");
 const Page = @import("../Page.zig");
 const Session = @import("../Session.zig");
 
 const v8 = js.v8;
 
 const Caller = @import("Caller.zig");
-const Context = @import("Context.zig");
 
 const IS_DEBUG = @import("builtin").mode == .Debug;
 
@@ -198,6 +195,7 @@ pub const Function = struct {
 
 pub const Accessor = struct {
     static: bool = false,
+    deletable: bool = true,
     cache: ?Caller.Function.Opts.Caching = null,
     getter: ?*const fn (?*const v8.FunctionCallbackInfo) callconv(.c) void = null,
     setter: ?*const fn (?*const v8.FunctionCallbackInfo) callconv(.c) void = null,
@@ -206,6 +204,7 @@ pub const Accessor = struct {
         var accessor = Accessor{
             .cache = opts.cache,
             .static = opts.static,
+            .deletable = opts.deletable,
         };
 
         if (@typeInfo(@TypeOf(getter)) != .null) {
@@ -850,6 +849,8 @@ pub const JsApis = flattenTypes(&.{
     @import("../webapi/event/TextEvent.zig"),
     @import("../webapi/event/InputEvent.zig"),
     @import("../webapi/event/PromiseRejectionEvent.zig"),
+    @import("../webapi/event/SubmitEvent.zig"),
+    @import("../webapi/event/FormDataEvent.zig"),
     @import("../webapi/MessageChannel.zig"),
     @import("../webapi/MessagePort.zig"),
     @import("../webapi/media/MediaError.zig"),
@@ -902,6 +903,7 @@ pub const JsApis = flattenTypes(&.{
     @import("../webapi/canvas/OffscreenCanvas.zig"),
     @import("../webapi/canvas/OffscreenCanvasRenderingContext2D.zig"),
     @import("../webapi/SubtleCrypto.zig"),
+    @import("../webapi/CryptoKey.zig"),
     @import("../webapi/Selection.zig"),
     @import("../webapi/ImageData.zig"),
     // Web Audio API (Phase 9 stealth)

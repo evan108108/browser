@@ -29,7 +29,6 @@ const Page = @import("../../Page.zig");
 const Session = @import("../../Session.zig");
 
 const Node = @import("../Node.zig");
-const Blob = @import("../Blob.zig");
 const Event = @import("../Event.zig");
 const Headers = @import("Headers.zig");
 const EventTarget = @import("../EventTarget.zig");
@@ -225,7 +224,7 @@ pub fn send(self: *XMLHttpRequest, body_: ?[]const u8) !void {
 
     try self._request_headers.populateHttpHeader(page.call_arena, &headers);
     if (cookie_support) {
-        try page.headersForRequest(self._arena, self._url, &headers);
+        try page.headersForRequest(&headers);
     }
 
     try http_client.request(.{
@@ -236,6 +235,7 @@ pub fn send(self: *XMLHttpRequest, body_: ?[]const u8) !void {
         .frame_id = page._frame_id,
         .body = self._request_body,
         .cookie_jar = if (cookie_support) &page._session.cookie_jar else null,
+        .cookie_origin = page.url,
         .resource_type = .xhr,
         .notification = page._session.notification,
         .start_callback = httpStartCallback,

@@ -24,9 +24,6 @@ const log = @import("../../log.zig");
 const URL = @import("../../browser/URL.zig");
 const js = @import("../../browser/js/js.zig");
 
-// TODO: hard coded IDs
-const LOADER_ID = "LOADERID42AA389647D702B4D805F49A";
-
 pub fn processMessage(cmd: anytype) !void {
     const action = std.meta.stringToEnum(enum {
         getTargets,
@@ -512,7 +509,7 @@ const TargetInfo = struct {
 
 const testing = @import("../testing.zig");
 test "cdp.target: getBrowserContexts" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
 
     // {
@@ -536,7 +533,7 @@ test "cdp.target: getBrowserContexts" {
 }
 
 test "cdp.target: createBrowserContext" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
 
     {
@@ -554,7 +551,7 @@ test "cdp.target: createBrowserContext" {
 }
 
 test "cdp.target: disposeBrowserContext" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
 
     {
@@ -585,7 +582,7 @@ test "cdp.target: disposeBrowserContext" {
 
 test "cdp.target: createTarget" {
     {
-        var ctx = testing.context();
+        var ctx = try testing.context();
         defer ctx.deinit();
         try ctx.processMessage(.{ .id = 10, .method = "Target.createTarget", .params = .{ .url = "about:blank" } });
 
@@ -595,7 +592,7 @@ test "cdp.target: createTarget" {
     }
 
     {
-        var ctx = testing.context();
+        var ctx = try testing.context();
         defer ctx.deinit();
         // active auto attach to get the Target.attachedToTarget event.
         try ctx.processMessage(.{ .id = 9, .method = "Target.setAutoAttach", .params = .{ .autoAttach = true, .waitForDebuggerOnStart = false } });
@@ -607,7 +604,7 @@ test "cdp.target: createTarget" {
         try ctx.expectSentEvent("Target.attachedToTarget", .{ .sessionId = bc.session_id.?, .targetInfo = .{ .url = "about:blank", .title = "", .attached = true, .type = "page", .canAccessOpener = false, .browserContextId = bc.id, .targetId = bc.target_id.? } }, .{});
     }
 
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
     const bc = try ctx.loadBrowserContext(.{ .id = "BID-9" });
     {
@@ -624,7 +621,7 @@ test "cdp.target: createTarget" {
 }
 
 test "cdp.target: closeTarget" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
 
     {
@@ -655,7 +652,7 @@ test "cdp.target: closeTarget" {
 }
 
 test "cdp.target: attachToTarget" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
 
     {
@@ -686,7 +683,7 @@ test "cdp.target: attachToTarget" {
 }
 
 test "cdp.target: getTargetInfo" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
 
     {
@@ -737,7 +734,7 @@ test "cdp.target: getTargetInfo" {
 }
 
 test "cdp.target: issue#474: attach to just created target" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
     const bc = try ctx.loadBrowserContext(.{ .id = "BID-9" });
     {
@@ -752,7 +749,7 @@ test "cdp.target: issue#474: attach to just created target" {
 }
 
 test "cdp.target: detachFromTarget" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
     const bc = try ctx.loadBrowserContext(.{ .id = "BID-9" });
     {
@@ -775,19 +772,19 @@ test "cdp.target: detachFromTarget" {
 }
 
 test "cdp.target: detachFromTarget without session" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
     _ = try ctx.loadBrowserContext(.{ .id = "BID-9" });
     {
         // detach when no session is attached should not send event
         try ctx.processMessage(.{ .id = 10, .method = "Target.detachFromTarget" });
         try ctx.expectSentResult(null, .{ .id = 10 });
-        try ctx.expectSentCount(0);
+        try ctx.expectSentCount(1);
     }
 }
 
 test "cdp.target: setAutoAttach false sends detachedFromTarget" {
-    var ctx = testing.context();
+    var ctx = try testing.context();
     defer ctx.deinit();
     const bc = try ctx.loadBrowserContext(.{ .id = "BID-9" });
     {

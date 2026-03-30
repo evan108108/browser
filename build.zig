@@ -17,24 +17,37 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const std = @import("std");
+const builtin = @import("builtin");
 
-const Build = std.Build;
+const lightpanda_version = std.SemanticVersion.parse(@import("build.zig.zon").version) catch unreachable;
+const min_zig_version = std.SemanticVersion.parse(@import("build.zig.zon").minimum_zig_version) catch unreachable;
+
+const Build = blk: {
+    if (builtin.zig_version.order(min_zig_version) == .lt) {
+        const message = std.fmt.comptimePrint(
+            \\Zig version is too old:
+            \\  current Zig version: {f}
+            \\  minimum Zig version: {f}
+        , .{ builtin.zig_version, min_zig_version });
+        @compileError(message);
+    } else {
+        break :blk std.Build;
+    }
+};
 
 pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const manifest = Manifest.init(b);
-
-    const git_commit = b.option([]const u8, "git_commit", "Current git commit");
-    const git_version = b.option([]const u8, "git_version", "Current git version (from tag)");
     const prebuilt_v8_path = b.option([]const u8, "prebuilt_v8_path", "Path to prebuilt libc_v8.a");
     const snapshot_path = b.option([]const u8, "snapshot_path", "Path to v8 snapshot");
 
+    const version = resolveVersion(b);
+    var stdout = std.fs.File.stdout().writer(&.{});
+    try stdout.interface.print("Lightpanda {f}\n", .{version});
+
     var opts = b.addOptions();
-    opts.addOption([]const u8, "version", manifest.version);
-    opts.addOption([]const u8, "git_commit", git_commit orelse "dev");
-    opts.addOption(?[]const u8, "git_version", git_version orelse null);
+    opts.addOption([]const u8, "version", b.fmt("{f}", .{version}));
     opts.addOption(?[]const u8, "snapshot_path", snapshot_path);
 
     const enable_tsan = b.option(bool, "tsan", "Enable Thread Sanitizer") orelse false;
@@ -104,6 +117,11 @@ pub fn build(b: *Build) !void {
         }
         const run_step = b.step("run", "Run the app");
         run_step.dependOn(&run_cmd.step);
+
+        const version_info_step = b.step("version", "Print the resolved version information");
+        const version_info_run = b.addRunArtifact(exe);
+        version_info_run.addArg("version");
+        version_info_step.dependOn(&version_info_run.step);
     }
 
     {
@@ -709,27 +727,56 @@ fn buildCurl(
     return lib;
 }
 
-const Manifest = struct {
-    version: []const u8,
-    minimum_zig_version: []const u8,
+/// Resolves the semantic version of the build.
+///
+/// The base version is read from `build.zig.zon`. This can be overridden
+/// using the `-Dversion` command-line flag:
+/// - If the flag contains a full semantic version (e.g., `1.2.3`), it replaces
+///   the base version entirely.
+/// - If the flag contains a simple string (e.g., `nightly`), it replaces only
+///   the pre-release tag of the base version (e.g., `1.0.0-dev` -> `1.0.0-nightly`).
+///
+/// For versions that have a pre-release tag and no explicit build metadata,
+/// this function automatically enriches the version with the git commit count
+/// and short hash (e.g., `1.0.0-dev.5243+dbe45229`).
+fn resolveVersion(b: *std.Build) std.SemanticVersion {
+    const opt_version = b.option([]const u8, "version", "Override the version of this build");
 
-    fn init(b: *std.Build) Manifest {
-        const input = @embedFile("build.zig.zon");
+    const version = if (opt_version) |v|
+        std.SemanticVersion.parse(v) catch blk: {
+            var fallback = lightpanda_version;
+            fallback.pre = v;
+            break :blk fallback;
+        }
+    else
+        lightpanda_version;
 
-        var diagnostics: std.zon.parse.Diagnostics = .{};
-        defer diagnostics.deinit(b.allocator);
+    // Only enrich versions that have a pre-release field and no explicit build metadata.
+    if (version.pre == null or version.build != null) return version;
 
-        return std.zon.parse.fromSlice(Manifest, b.allocator, input, &diagnostics, .{
-            .free_on_error = true,
-            .ignore_unknown_fields = true,
-        }) catch |err| {
-            switch (err) {
-                error.OutOfMemory => @panic("OOM"),
-                error.ParseZon => {
-                    std.debug.print("Parse diagnostics:\n{f}\n", .{diagnostics});
-                    std.process.exit(1);
-                },
-            }
-        };
-    }
-};
+    // For dev/nightly versions, calculate the commit count and hash
+    const git_hash_raw = runGit(b, &.{ "rev-parse", "--short", "HEAD" }) catch return version;
+    const commit_hash = std.mem.trim(u8, git_hash_raw, " \n\r");
+
+    const git_count_raw = runGit(b, &.{ "rev-list", "--count", "HEAD" }) catch return version;
+    const commit_count = std.mem.trim(u8, git_count_raw, " \n\r");
+
+    return .{
+        .major = version.major,
+        .minor = version.minor,
+        .patch = version.patch,
+        .pre = b.fmt("{s}.{s}", .{ version.pre.?, commit_count }),
+        .build = commit_hash,
+    };
+}
+
+/// Helper function to run git commands and return stdout
+fn runGit(b: *std.Build, args: []const []const u8) ![]const u8 {
+    var code: u8 = undefined;
+    const dir = b.pathFromRoot(".");
+    var command: std.ArrayList([]const u8) = .empty;
+    defer command.deinit(b.allocator);
+    try command.appendSlice(b.allocator, &.{ "git", "-C", dir });
+    try command.appendSlice(b.allocator, args);
+    return b.runAllowFail(command.items, &code, .Ignore);
+}

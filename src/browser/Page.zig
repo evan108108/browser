@@ -27,7 +27,6 @@ const IS_DEBUG = builtin.mode == .Debug;
 
 const log = @import("../log.zig");
 
-const App = @import("../App.zig");
 const String = @import("../string.zig").String;
 
 const Mime = @import("Mime.zig");
@@ -43,7 +42,6 @@ const URL = @import("URL.zig");
 const Blob = @import("webapi/Blob.zig");
 const Node = @import("webapi/Node.zig");
 const Event = @import("webapi/Event.zig");
-const EventTarget = @import("webapi/EventTarget.zig");
 const CData = @import("webapi/CData.zig");
 const Element = @import("webapi/Element.zig");
 const HtmlElement = @import("webapi/element/Html.zig");
@@ -59,14 +57,13 @@ const AbstractRange = @import("webapi/AbstractRange.zig");
 const MutationObserver = @import("webapi/MutationObserver.zig");
 const IntersectionObserver = @import("webapi/IntersectionObserver.zig");
 const CustomElementDefinition = @import("webapi/CustomElementDefinition.zig");
-const storage = @import("webapi/storage/storage.zig");
 const PageTransitionEvent = @import("webapi/event/PageTransitionEvent.zig");
+const SubmitEvent = @import("webapi/event/SubmitEvent.zig");
 const NavigationKind = @import("webapi/navigation/root.zig").NavigationKind;
 const KeyboardEvent = @import("webapi/event/KeyboardEvent.zig");
 const MouseEvent = @import("webapi/event/MouseEvent.zig");
 
 const HttpClient = @import("HttpClient.zig");
-const ArenaPool = App.ArenaPool;
 
 const timestamp = @import("../datetime.zig").timestamp;
 const milliTimestamp = @import("../datetime.zig").milliTimestamp;
@@ -299,7 +296,9 @@ pub fn init(self: *Page, frame_id: u32, session: *Session, parent: ?*Page) !void
         ._performance = Performance.init(),
         ._screen = screen,
         ._visual_viewport = visual_viewport,
+        ._cross_origin_wrapper = undefined,
     });
+    self.window._cross_origin_wrapper = .{ .window = self.window };
 
     self._style_manager = try StyleManager.init(self);
     errdefer self._style_manager.deinit();
@@ -382,12 +381,9 @@ pub fn getTitle(self: *Page) !?[]const u8 {
     return null;
 }
 
-// Add comon headers for a request:
-// * cookies
+// Add common headers for a request:
 // * referer
-pub fn headersForRequest(self: *Page, temp: Allocator, url: [:0]const u8, headers: *HttpClient.Headers) !void {
-    try self.requestCookie(.{}).headersForRequest(temp, url, headers);
-
+pub fn headersForRequest(self: *Page, headers: *HttpClient.Headers) !void {
     // Build the referer
     const referer = blk: {
         if (self.referer_header == null) {
@@ -542,8 +538,6 @@ pub fn navigate(self: *Page, request_url: [:0]const u8, opts: NavigateOpts) !voi
     if (opts.header) |hdr| {
         try headers.add(hdr);
     }
-    try self.requestCookie(.{ .is_navigation = true }).headersForRequest(self.arena, self.url, &headers);
-
     // We dispatch page_navigate event before sending the request.
     // It ensures the event page_navigated is not dispatched before this one.
     session.notification.dispatch(.page_navigate, &.{
@@ -570,6 +564,7 @@ pub fn navigate(self: *Page, request_url: [:0]const u8, opts: NavigateOpts) !voi
         .headers = headers,
         .body = opts.body,
         .cookie_jar = &session.cookie_jar,
+        .cookie_origin = self.url,
         .resource_type = .document,
         .notification = self._session.notification,
         .header_callback = pageHeaderDoneCallback,
@@ -1033,6 +1028,7 @@ fn pageDoneCallback(ctx: *anyopaque) !void {
             });
 
             parser.parse(html);
+            self._parse_state = .complete;
             self.documentIsComplete();
         },
         else => unreachable,
@@ -3487,7 +3483,8 @@ pub fn submitForm(self: *Page, submitter_: ?*Element, form_: ?*Element.Html.Form
     };
 
     if (submit_opts.fire_event) {
-        const submit_event = try Event.initTrusted(comptime .wrap("submit"), .{ .bubbles = true, .cancelable = true }, self);
+        const submitter_html: ?*HtmlElement = if (submitter_) |s| s.is(HtmlElement) else null;
+        const submit_event = (try SubmitEvent.initTrusted(comptime .wrap("submit"), .{ .bubbles = true, .cancelable = true, .submitter = submitter_html }, self)).asEvent();
 
         // so submit_event is still valid when we check _prevent_default
         submit_event.acquireRef();
@@ -3550,19 +3547,6 @@ pub fn insertText(self: *Page, v: []const u8) !void {
     }
 }
 
-const RequestCookieOpts = struct {
-    is_http: bool = true,
-    is_navigation: bool = false,
-};
-pub fn requestCookie(self: *const Page, opts: RequestCookieOpts) HttpClient.RequestCookie {
-    return .{
-        .jar = &self._session.cookie_jar,
-        .origin = self.url,
-        .is_http = opts.is_http,
-        .is_navigation = opts.is_navigation,
-    };
-}
-
 fn asUint(comptime string: anytype) std.meta.Int(
     .unsigned,
     @bitSizeOf(@TypeOf(string.*)) - 8, // (- 8) to exclude sentinel 0
@@ -3585,12 +3569,7 @@ test "WebApi: Page" {
 }
 
 test "WebApi: Frames" {
-    // TOO FLAKY, disabled for now
-
-    // const filter: testing.LogFilter = .init(&.{.js});
-    // defer filter.deinit();
-
-    // try testing.htmlRunner("frames", .{});
+    try testing.htmlRunner("frames", .{});
 }
 
 test "WebApi: Integration" {
